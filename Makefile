@@ -62,54 +62,54 @@ dev-frontend: ## Inicia apenas o frontend
 # Build
 build: ## Faz build de todos os projetos
 	@$(call print_status,Fazendo build de todos os projetos...)
-	@cd nps-backend && npm run build
-	@cd nps-frontend && npm run build
+	@cd backend && npm run build
+	@cd frontend && npm run build
 	@$(call print_success,Build concluído!)
 
 build-backend: ## Faz build do backend
 	@$(call print_status,Fazendo build do backend...)
-	@cd nps-backend && npm run build
+	@cd backend && npm run build
 	@$(call print_success,Build do backend concluído!)
 
 build-frontend: ## Faz build do frontend
 	@$(call print_status,Fazendo build do frontend...)
-	@cd nps-frontend && npm run build
+	@cd frontend && npm run build
 	@$(call print_success,Build do frontend concluído!)
 
 # Testes
 test: ## Executa todos os testes
 	@$(call print_status,Executando todos os testes...)
-	@cd nps-backend && npm test
-	@cd nps-frontend && npm test
+	@cd backend && npm test
+	@cd frontend && npm test
 	@$(call print_success,Todos os testes passaram!)
 
 test-backend: ## Executa testes do backend
 	@$(call print_status,Executando testes do backend...)
-	@cd nps-backend && npm test
+	@cd backend && npm test
 	@$(call print_success,Testes do backend concluídos!)
 
 test-frontend: ## Executa testes do frontend
 	@$(call print_status,Executando testes do frontend...)
-	@cd nps-frontend && npm test
+	@cd frontend && npm test
 	@$(call print_success,Testes do frontend concluídos!)
 
 test-coverage: ## Executa testes com cobertura
 	@$(call print_status,Executando testes com cobertura...)
-	@cd nps-backend && npm run test:coverage
-	@cd nps-frontend && npm run test:coverage
+	@cd backend && npm run test:coverage
+	@cd frontend && npm run test:coverage
 	@$(call print_success,Testes com cobertura concluídos!)
 
 # Linting
 lint: ## Executa linting em todos os projetos
 	@$(call print_status,Executando linting...)
-	@cd nps-backend && npm run lint
-	@cd nps-frontend && npm run lint
+	@cd backend && npm run lint
+	@cd frontend && npm run lint
 	@$(call print_success,Linting concluído!)
 
 lint-fix: ## Executa linting e corrige problemas
 	@$(call print_status,Executando linting e correções...)
-	@cd nps-backend && npm run lint:fix
-	@cd nps-frontend && npm run lint:fix
+	@cd backend && npm run lint:fix
+	@cd frontend && npm run lint:fix
 	@$(call print_success,Linting e correções concluídos!)
 
 # Deploy
@@ -147,39 +147,39 @@ status: ## Mostra status dos deployments
 # Limpeza
 clean: ## Limpa arquivos temporários
 	@$(call print_status,Limpando arquivos temporários...)
-	@cd nps-backend && npm run clean
-	@cd nps-frontend && rm -rf dist
-	@cd nps-infra && rm -rf .serverless
+	@cd backend && npm run clean
+	@cd frontend && rm -rf dist
+	@cd infra && rm -rf .serverless
 	@$(call print_success,Limpeza concluída!)
 
 clean-all: ## Limpa tudo (node_modules, dist, etc.)
 	@$(call print_status,Limpando tudo...)
-	@cd nps-backend && rm -rf node_modules dist
-	@cd nps-frontend && rm -rf node_modules dist
-	@cd nps-infra && rm -rf node_modules .serverless
+	@cd backend && rm -rf node_modules dist
+	@cd frontend && rm -rf node_modules dist
+	@cd infra && rm -rf node_modules .serverless
 	@$(call print_success,Limpeza completa concluída!)
 
 # Instalação de dependências
 install: ## Instala dependências de todos os projetos
 	@$(call print_status,Instalando dependências...)
-	@cd nps-backend && npm install
-	@cd nps-frontend && npm install
-	@cd nps-infra && npm install
+	@cd backend && npm install
+	@cd frontend && npm install
+	@cd infra && npm install
 	@$(call print_success,Dependências instaladas!)
 
 install-backend: ## Instala dependências do backend
 	@$(call print_status,Instalando dependências do backend...)
-	@cd nps-backend && npm install
+	@cd backend && npm install
 	@$(call print_success,Dependências do backend instaladas!)
 
 install-frontend: ## Instala dependências do frontend
 	@$(call print_status,Instalando dependências do frontend...)
-	@cd nps-frontend && npm install
+	@cd frontend && npm install
 	@$(call print_success,Dependências do frontend instaladas!)
 
 install-infra: ## Instala dependências da infraestrutura
 	@$(call print_status,Instalando dependências da infraestrutura...)
-	@cd nps-infra && npm install
+	@cd infra && npm install
 	@$(call print_success,Dependências da infraestrutura instaladas!)
 
 # Verificações
@@ -193,17 +193,17 @@ check: ## Verifica se tudo está configurado corretamente
 # Logs
 logs-backend: ## Mostra logs do backend
 	@$(call print_status,Mostrando logs do backend...)
-	@cd nps-backend && npm run logs
+	@cd backend && npm run logs
 
 logs-frontend: ## Mostra logs do frontend
 	@$(call print_status,Mostrando logs do frontend...)
-	@cd nps-frontend && npm run dev
+	@cd frontend && npm run dev
 
 # Docker (opcional)
 docker-build: ## Constrói imagens Docker
 	@$(call print_status,Construindo imagens Docker...)
-	@docker build -t nps-backend ./nps-backend
-	@docker build -t nps-frontend ./nps-frontend
+	@docker build -t backend ./backend
+	@docker build -t frontend ./frontend
 	@$(call print_success,Imagens Docker construídas!)
 
 docker-run: ## Executa aplicação com Docker

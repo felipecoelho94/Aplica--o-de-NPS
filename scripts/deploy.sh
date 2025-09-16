@@ -49,7 +49,7 @@ deploy_infra() {
     local stage=$1
     print_status "Fazendo deploy da infraestrutura para $stage..."
     
-    cd nps-infra
+    cd infra
     
     # Verificar se as dependências estão instaladas
     if [ ! -d node_modules ]; then
@@ -70,7 +70,7 @@ deploy_backend() {
     local stage=$1
     print_status "Fazendo deploy do backend para $stage..."
     
-    cd nps-backend
+    cd backend
     
     # Verificar se as dependências estão instaladas
     if [ ! -d node_modules ]; then
@@ -95,7 +95,7 @@ deploy_frontend() {
     local stage=$1
     print_status "Fazendo deploy do frontend para $stage..."
     
-    cd nps-frontend
+    cd frontend
     
     # Verificar se as dependências estão instaladas
     if [ ! -d node_modules ]; then
@@ -134,7 +134,7 @@ rollback() {
     local stage=$1
     print_status "Fazendo rollback para $stage..."
     
-    cd nps-infra
+    cd infra
     
     # Rollback com Serverless Framework
     print_status "Executando serverless rollback..."
@@ -149,13 +149,13 @@ show_status() {
     local stage=$1
     print_status "Mostrando status dos deployments para $stage..."
     
-    cd nps-infra
+    cd infra
     
     # Mostrar status do Serverless
     print_status "Status da infraestrutura:"
     npx serverless info --stage $stage
     
-    cd ../nps-backend
+    cd ../backend
     
     # Mostrar status do backend
     print_status "Status do backend:"

@@ -61,7 +61,7 @@ check_services() {
 # Executar backend
 start_backend() {
     print_status "Iniciando backend..."
-    cd nps-backend
+    cd backend
     
     # Verificar se .env existe
     if [ ! -f .env ]; then
@@ -97,7 +97,7 @@ start_backend() {
 # Executar frontend
 start_frontend() {
     print_status "Iniciando frontend..."
-    cd nps-frontend
+    cd frontend
     
     # Verificar se .env existe
     if [ ! -f .env ]; then
@@ -142,7 +142,7 @@ show_status() {
     echo ""
     echo "🔧 Comandos úteis:"
     echo "   - Para parar: Ctrl+C"
-    echo "   - Logs do backend: tail -f nps-backend/logs/app.log"
+    echo "   - Logs do backend: tail -f backend/logs/app.log"
     echo "   - Logs do frontend: verifique o terminal"
     echo ""
     echo "📚 Documentação: README.md"

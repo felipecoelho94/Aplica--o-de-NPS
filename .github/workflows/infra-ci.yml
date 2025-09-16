@@ -3,10 +3,10 @@ name: Infrastructure CI/CD
 on:
   push:
     branches: [ main, dev ]
-    paths: [ 'nps-infra/**' ]
+    paths: [ 'infra/**' ]
   pull_request:
     branches: [ main, dev ]
-    paths: [ 'nps-infra/**' ]
+    paths: [ 'infra/**' ]
 
 env:
   NODE_VERSION: '18'
@@ -25,14 +25,14 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: nps-infra/package-lock.json
+        cache-dependency-path: infra/package-lock.json
 
     - name: Install dependencies
-      working-directory: ./nps-infra
+      working-directory: ./infra
       run: npm ci
 
     - name: Validate Serverless configuration
-      working-directory: ./nps-infra
+      working-directory: ./infra
       run: npx serverless config validate
 
     - name: Setup Terraform
@@ -41,15 +41,15 @@ jobs:
         terraform_version: '1.5.0'
 
     - name: Terraform Format Check
-      working-directory: ./nps-infra/terraform
+      working-directory: ./infra/terraform
       run: terraform fmt -check
 
     - name: Terraform Init
-      working-directory: ./nps-infra/terraform
+      working-directory: ./infra/terraform
       run: terraform init
 
     - name: Terraform Validate
-      working-directory: ./nps-infra/terraform
+      working-directory: ./infra/terraform
       run: terraform validate
 
   plan:
@@ -66,10 +66,10 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: nps-infra/package-lock.json
+        cache-dependency-path: infra/package-lock.json
 
     - name: Install dependencies
-      working-directory: ./nps-infra
+      working-directory: ./infra
       run: npm ci
 
     - name: Configure AWS credentials
@@ -85,11 +85,11 @@ jobs:
         terraform_version: '1.5.0'
 
     - name: Terraform Init
-      working-directory: ./nps-infra/terraform
+      working-directory: ./infra/terraform
       run: terraform init
 
     - name: Terraform Plan
-      working-directory: ./nps-infra/terraform
+      working-directory: ./infra/terraform
       run: terraform plan -var-file="terraform.tfvars" -out=tfplan
       env:
         TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
@@ -101,7 +101,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: terraform-plan
-        path: nps-infra/terraform/tfplan
+        path: infra/terraform/tfplan
 
   deploy-dev:
     if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
@@ -118,10 +118,10 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: nps-infra/package-lock.json
+        cache-dependency-path: infra/package-lock.json
 
     - name: Install dependencies
-      working-directory: ./nps-infra
+      working-directory: ./infra
       run: npm ci
 
     - name: Configure AWS credentials
@@ -132,7 +132,7 @@ jobs:
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Deploy infrastructure to development
-      working-directory: ./nps-infra
+      working-directory: ./infra
       run: npm run deploy:dev
       env:
         JWT_SECRET: ${{ secrets.JWT_SECRET }}
@@ -155,10 +155,10 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: nps-infra/package-lock.json
+        cache-dependency-path: infra/package-lock.json
 
     - name: Install dependencies
-      working-directory: ./nps-infra
+      working-directory: ./infra
       run: npm ci
 
     - name: Configure AWS credentials
@@ -169,7 +169,7 @@ jobs:
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Deploy infrastructure to production
-      working-directory: ./nps-infra
+      working-directory: ./infra
       run: npm run deploy:prod
       env:
         JWT_SECRET: ${{ secrets.JWT_SECRET }}

@@ -70,10 +70,10 @@ check_serverless() {
 # Instalar dependências do backend
 install_backend() {
     print_status "Instalando dependências do backend..."
-    cd nps-backend
+    cd backend
     
     if [ ! -f package.json ]; then
-        print_error "package.json não encontrado em nps-backend/"
+        print_error "package.json não encontrado em backend/"
         exit 1
     fi
     
@@ -85,10 +85,10 @@ install_backend() {
 # Instalar dependências do frontend
 install_frontend() {
     print_status "Instalando dependências do frontend..."
-    cd nps-frontend
+    cd frontend
     
     if [ ! -f package.json ]; then
-        print_error "package.json não encontrado em nps-frontend/"
+        print_error "package.json não encontrado em frontend/"
         exit 1
     fi
     
@@ -100,10 +100,10 @@ install_frontend() {
 # Instalar dependências da infraestrutura
 install_infra() {
     print_status "Instalando dependências da infraestrutura..."
-    cd nps-infra
+    cd infra
     
     if [ ! -f package.json ]; then
-        print_error "package.json não encontrado em nps-infra/"
+        print_error "package.json não encontrado em infra/"
         exit 1
     fi
     
@@ -117,16 +117,16 @@ create_env_files() {
     print_status "Criando arquivos de ambiente..."
     
     # Backend .env
-    if [ ! -f nps-backend/.env ]; then
-        cp nps-backend/env.example nps-backend/.env
+    if [ ! -f backend/.env ]; then
+        cp backend/env.example backend/.env
         print_success "Arquivo .env criado para o backend"
     else
         print_warning "Arquivo .env já existe no backend"
     fi
     
     # Frontend .env
-    if [ ! -f nps-frontend/.env ]; then
-        cat > nps-frontend/.env << EOF
+    if [ ! -f frontend/.env ]; then
+        cat > frontend/.env << EOF
 VITE_API_URL=http://localhost:3000
 VITE_COGNITO_USER_POOL_ID=your-user-pool-id
 VITE_COGNITO_CLIENT_ID=your-client-id
@@ -137,8 +137,8 @@ EOF
     fi
     
     # Terraform .tfvars
-    if [ ! -f nps-infra/terraform/terraform.tfvars ]; then
-        cp nps-infra/terraform/terraform.tfvars.example nps-infra/terraform/terraform.tfvars
+    if [ ! -f infra/terraform/terraform.tfvars ]; then
+        cp infra/terraform/terraform.tfvars.example infra/terraform/terraform.tfvars
         print_success "Arquivo terraform.tfvars criado"
     else
         print_warning "Arquivo terraform.tfvars já existe"
@@ -149,7 +149,7 @@ EOF
 check_structure() {
     print_status "Verificando estrutura de pastas..."
     
-    required_dirs=("nps-backend" "nps-frontend" "nps-infra")
+    required_dirs=("backend" "frontend" "infra")
     
     for dir in "${required_dirs[@]}"; do
         if [ ! -d "$dir" ]; then
@@ -169,21 +169,21 @@ show_next_steps() {
     echo "📋 Próximos passos:"
     echo ""
     echo "1. Configure as variáveis de ambiente:"
-    echo "   - Edite nps-backend/.env com suas configurações"
-    echo "   - Edite nps-frontend/.env com a URL da API"
-    echo "   - Edite nps-infra/terraform/terraform.tfvars com suas configurações AWS"
+    echo "   - Edite backend/.env com suas configurações"
+    echo "   - Edite frontend/.env com a URL da API"
+    echo "   - Edite infra/terraform/terraform.tfvars com suas configurações AWS"
     echo ""
     echo "2. Configure o AWS CLI:"
     echo "   aws configure"
     echo ""
     echo "3. Deploy da infraestrutura:"
-    echo "   cd nps-infra && npm run deploy:dev"
+    echo "   cd infra && npm run deploy:dev"
     echo ""
     echo "4. Execute o backend localmente:"
-    echo "   cd nps-backend && npm run dev"
+    echo "   cd backend && npm run dev"
     echo ""
     echo "5. Execute o frontend localmente:"
-    echo "   cd nps-frontend && npm run dev"
+    echo "   cd frontend && npm run dev"
     echo ""
     echo "📚 Documentação completa em README.md"
     echo ""

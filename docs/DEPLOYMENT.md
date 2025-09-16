@@ -101,7 +101,7 @@ STAGE=dev
 ### Opção 1: Serverless Framework (Recomendado)
 
 ```bash
-cd nps-infra
+cd infra
 
 # Instalar dependências
 npm install
@@ -116,7 +116,7 @@ npm run deploy:prod
 ### Opção 2: Terraform
 
 ```bash
-cd nps-infra/terraform
+cd infra/terraform
 
 # Inicializar Terraform
 terraform init
@@ -144,7 +144,7 @@ aws sqs list-queues
 
 ### 1. Configurar Variáveis
 
-Edite `nps-backend/.env`:
+Edite `backend/.env`:
 
 ```bash
 # Server Configuration
@@ -175,7 +175,7 @@ CORS_ORIGINS=https://app.nps-saas.com
 ### 2. Deploy
 
 ```bash
-cd nps-backend
+cd backend
 
 # Instalar dependências
 npm install
@@ -207,7 +207,7 @@ aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/nps"
 
 ### 1. Configurar Variáveis
 
-Edite `nps-frontend/.env`:
+Edite `frontend/.env`:
 
 ```bash
 # API Configuration
@@ -224,7 +224,7 @@ VITE_ENV=production
 ### 2. Build e Deploy
 
 ```bash
-cd nps-frontend
+cd frontend
 
 # Instalar dependências
 npm install
@@ -413,7 +413,7 @@ aws cloudwatch get-metric-statistics \
 ### 1. Rollback do Backend
 
 ```bash
-cd nps-backend
+cd backend
 
 # Listar versões
 aws lambda list-versions-by-function --function-name nps-api-prod
@@ -438,7 +438,7 @@ aws cloudfront create-invalidation --distribution-id YOUR_DISTRIBUTION_ID --path
 ### 3. Rollback da Infraestrutura
 
 ```bash
-cd nps-infra
+cd infra
 
 # Rollback do Serverless
 serverless rollback --stage prod

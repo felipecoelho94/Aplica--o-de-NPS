@@ -3,10 +3,10 @@ name: Backend CI/CD
 on:
   push:
     branches: [ main, dev ]
-    paths: [ 'nps-backend/**' ]
+    paths: [ 'backend/**' ]
   pull_request:
     branches: [ main, dev ]
-    paths: [ 'nps-backend/**' ]
+    paths: [ 'backend/**' ]
 
 env:
   NODE_VERSION: '18'
@@ -25,28 +25,28 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: nps-backend/package-lock.json
+        cache-dependency-path: backend/package-lock.json
 
     - name: Install dependencies
-      working-directory: ./nps-backend
+      working-directory: ./backend
       run: npm ci
 
     - name: Run linting
-      working-directory: ./nps-backend
+      working-directory: ./backend
       run: npm run lint
 
     - name: Run type checking
-      working-directory: ./nps-backend
+      working-directory: ./backend
       run: npm run type-check
 
     - name: Run tests
-      working-directory: ./nps-backend
+      working-directory: ./backend
       run: npm run test:coverage
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
       with:
-        file: ./nps-backend/coverage/lcov.info
+        file: ./backend/coverage/lcov.info
         flags: backend
 
   build:
@@ -62,21 +62,21 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: nps-backend/package-lock.json
+        cache-dependency-path: backend/package-lock.json
 
     - name: Install dependencies
-      working-directory: ./nps-backend
+      working-directory: ./backend
       run: npm ci
 
     - name: Build application
-      working-directory: ./nps-backend
+      working-directory: ./backend
       run: npm run build
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v3
       with:
         name: backend-build
-        path: nps-backend/dist
+        path: backend/dist
 
   deploy-dev:
     if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
@@ -93,10 +93,10 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: nps-backend/package-lock.json
+        cache-dependency-path: backend/package-lock.json
 
     - name: Install dependencies
-      working-directory: ./nps-backend
+      working-directory: ./backend
       run: npm ci
 
     - name: Configure AWS credentials
@@ -107,7 +107,7 @@ jobs:
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Deploy to development
-      working-directory: ./nps-backend
+      working-directory: ./backend
       run: npm run deploy:dev
       env:
         JWT_SECRET: ${{ secrets.JWT_SECRET }}
@@ -130,10 +130,10 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: nps-backend/package-lock.json
+        cache-dependency-path: backend/package-lock.json
 
     - name: Install dependencies
-      working-directory: ./nps-backend
+      working-directory: ./backend
       run: npm ci
 
     - name: Configure AWS credentials
@@ -144,7 +144,7 @@ jobs:
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Deploy to production
-      working-directory: ./nps-backend
+      working-directory: ./backend
       run: npm run deploy:prod
       env:
         JWT_SECRET: ${{ secrets.JWT_SECRET }}

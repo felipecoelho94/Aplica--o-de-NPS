@@ -26,17 +26,17 @@ Sistema completo de envio de pesquisas NPS integrado ao Zendesk com suporte a Wh
 
 ```
 nps-saas/
-├── nps-infra/          # Infraestrutura como Código
+├── infra/          # Infraestrutura como Código
 │   ├── serverless.yml  # Serverless Framework
 │   └── terraform/      # Terraform (opcional)
-├── nps-backend/        # Backend TypeScript + Fastify
+├── backend/        # Backend TypeScript + Fastify
 │   ├── src/
 │   │   ├── routes/     # Rotas da API
 │   │   ├── services/   # Lógica de negócio
 │   │   ├── middleware/ # Middlewares
 │   │   └── workers/    # Workers assíncronos
 │   └── tests/          # Testes
-├── nps-frontend/       # Frontend React + Vite
+├── frontend/       # Frontend React + Vite
 │   ├── src/
 │   │   ├── components/ # Componentes React
 │   │   ├── pages/      # Páginas
@@ -74,7 +74,7 @@ cd nps-saas
 
 #### 1. Infraestrutura
 ```bash
-cd nps-infra
+cd infra
 npm install
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
 # Edite terraform.tfvars com suas configurações
@@ -83,7 +83,7 @@ npm run deploy:dev
 
 #### 2. Backend
 ```bash
-cd nps-backend
+cd backend
 npm install
 cp env.example .env
 # Edite .env com suas configurações
@@ -92,7 +92,7 @@ npm run dev
 
 #### 3. Frontend
 ```bash
-cd nps-frontend
+cd frontend
 npm install
 cp .env.example .env
 # Edite .env com suas configurações
@@ -215,17 +215,17 @@ make status           # Status dos deployments
 
 ```bash
 # Backend
-cd nps-backend
+cd backend
 npm test
 npm run test:coverage
 
 # Frontend
-cd nps-frontend
+cd frontend
 npm test
 npm run test:coverage
 
 # Infraestrutura
-cd nps-infra
+cd infra
 npm test
 ```
 
