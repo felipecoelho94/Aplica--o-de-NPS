@@ -1,0 +1,289 @@
+service: nps-saas
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 512
+  timeout: 30
+  environment:
+    STAGE: ${self:provider.stage}
+    REGION: ${self:provider.region}
+    DYNAMODB_TABLE_NAME: ${self:custom.tableName}
+    S3_BUCKET_NAME: ${self:custom.s3BucketName}
+    SQS_QUEUE_URL: !Ref SendQueue
+    JWT_SECRET: ${env:JWT_SECRET, 'dev-secret-key'}
+    ZENDESK_API_TOKEN: ${env:ZENDESK_API_TOKEN, ''}
+    ZENDESK_SUBDOMAIN: ${env:ZENDESK_SUBDOMAIN, ''}
+    SUNCO_API_TOKEN: ${env:SUNCO_API_TOKEN, ''}
+  iam:
+    role:
+      statements:
+        # DynamoDB permissions
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:Query
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Scan
+          Resource:
+            - !GetAtt NpsTable.Arn
+            - !Sub "${NpsTable.Arn}/index/*"
+        # S3 permissions
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:DeleteObject
+          Resource: !Sub "${S3Bucket}/*"
+        # SQS permissions
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:GetQueueAttributes
+          Resource: !GetAtt SendQueue.Arn
+        # Secrets Manager
+        - Effect: Allow
+          Action:
+            - secretsmanager:GetSecretValue
+          Resource: !Sub "arn:aws:secretsmanager:${self:provider.region}:${AWS::AccountId}:secret:nps-saas/*"
+
+custom:
+  tableName: nps-app-table-${self:provider.stage}
+  s3BucketName: nps-assets-${self:provider.stage}-${AWS::AccountId}
+  webpack:
+    webpackConfig: 'webpack.config.js'
+    includeModules: true
+    packager: 'npm'
+
+plugins:
+  - serverless-webpack
+  - serverless-offline
+
+functions:
+  api:
+    handler: src/handler.handler
+    events:
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors: true
+    environment:
+      FUNCTION_TYPE: 'api'
+  
+  workerSend:
+    handler: src/workers/send.handler
+    events:
+      - sqs:
+          arn: !GetAtt SendQueue.Arn
+          batchSize: 10
+          maximumBatchingWindowInSeconds: 5
+    environment:
+      FUNCTION_TYPE: 'worker'
+    timeout: 300
+
+resources:
+  Resources:
+    # DynamoDB Table - Single Table Design
+    NpsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.tableName}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+    # S3 Bucket para assets
+    S3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.s3BucketName}
+        VersioningConfiguration:
+          Status: Enabled
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders: ['*']
+              AllowedMethods: [GET, POST, PUT, DELETE]
+              AllowedOrigins: ['*']
+              MaxAge: 3600
+
+    # SQS Queue para envios
+    SendQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: nps-send-queue-${self:provider.stage}
+        VisibilityTimeoutSeconds: 300
+        MessageRetentionPeriod: 1209600
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt SendDLQ.Arn
+          maxReceiveCount: 3
+
+    # Dead Letter Queue
+    SendDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: nps-send-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600
+
+    # Cognito User Pool
+    UserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: nps-user-pool-${self:provider.stage}
+        UsernameAttributes:
+          - email
+        AutoVerifiedAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireUppercase: true
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireSymbols: true
+        Schema:
+          - Name: email
+            AttributeDataType: String
+            Required: true
+            Mutable: true
+          - Name: name
+            AttributeDataType: String
+            Required: true
+            Mutable: true
+
+    # Cognito User Pool Client
+    UserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        UserPoolId: !Ref UserPool
+        ClientName: nps-client-${self:provider.stage}
+        GenerateSecret: false
+        ExplicitAuthFlows:
+          - ALLOW_USER_SRP_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+        SupportedIdentityProviders:
+          - COGNITO
+        CallbackURLs:
+          - http://localhost:3000/auth/callback
+          - https://${self:custom.domainName}/auth/callback
+        LogoutURLs:
+          - http://localhost:3000/auth/logout
+          - https://${self:custom.domainName}/auth/logout
+
+    # CloudWatch Log Groups
+    ApiLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: /aws/lambda/nps-api-${self:provider.stage}
+        RetentionInDays: 14
+
+    WorkerLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: /aws/lambda/nps-worker-${self:provider.stage}
+        RetentionInDays: 14
+
+    # CloudWatch Alarms
+    ErrorAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: nps-api-errors-${self:provider.stage}
+        AlarmDescription: 'API Lambda errors'
+        MetricName: Errors
+        Namespace: AWS/Lambda
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 5
+        ComparisonOperator: GreaterThanThreshold
+        Dimensions:
+          - Name: FunctionName
+            Value: !Ref ApiLambdaFunction
+
+    DLQAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: nps-dlq-messages-${self:provider.stage}
+        AlarmDescription: 'Messages in Dead Letter Queue'
+        MetricName: ApproximateNumberOfVisibleMessages
+        Namespace: AWS/SQS
+        Statistic: Average
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        Dimensions:
+          - Name: QueueName
+            Value: !Ref SendDLQ
+
+  Outputs:
+    ApiUrl:
+      Description: 'API Gateway URL'
+      Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}'
+      Export:
+        Name: ${self:service}-${self:provider.stage}-api-url
+
+    TableName:
+      Description: 'DynamoDB Table Name'
+      Value: !Ref NpsTable
+      Export:
+        Name: ${self:service}-${self:provider.stage}-table-name
+
+    QueueUrl:
+      Description: 'SQS Queue URL'
+      Value: !Ref SendQueue
+      Export:
+        Name: ${self:service}-${self:provider.stage}-queue-url
+
+    UserPoolId:
+      Description: 'Cognito User Pool ID'
+      Value: !Ref UserPool
+      Export:
+        Name: ${self:service}-${self:provider.stage}-user-pool-id
+
+    UserPoolClientId:
+      Description: 'Cognito User Pool Client ID'
+      Value: !Ref UserPoolClient
+      Export:
+        Name: ${self:service}-${self:provider.stage}-user-pool-client-id
+
+    S3BucketName:
+      Description: 'S3 Bucket Name'
+      Value: !Ref S3Bucket
+      Export:
+        Name: ${self:service}-${self:provider.stage}-s3-bucket

@@ -1,0 +1,188 @@
+service: nps-backend
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 512
+  timeout: 30
+  environment:
+    STAGE: ${self:provider.stage}
+    REGION: ${self:provider.region}
+    DYNAMODB_TABLE_NAME: ${env:DYNAMODB_TABLE_NAME, 'nps-app-table-dev'}
+    S3_BUCKET_NAME: ${env:S3_BUCKET_NAME, 'nps-assets-dev'}
+    SQS_QUEUE_URL: ${env:SQS_QUEUE_URL, ''}
+    JWT_SECRET: ${env:JWT_SECRET, 'dev-secret-key'}
+    ZENDESK_API_TOKEN: ${env:ZENDESK_API_TOKEN, ''}
+    ZENDESK_SUBDOMAIN: ${env:ZENDESK_SUBDOMAIN, ''}
+    SUNCO_API_TOKEN: ${env:SUNCO_API_TOKEN, ''}
+    SUNCO_APP_ID: ${env:SUNCO_APP_ID, ''}
+    API_BASE_URL: ${env:API_BASE_URL, 'https://api.nps-saas.com'}
+  iam:
+    role:
+      statements:
+        # DynamoDB permissions
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:Query
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Scan
+            - dynamodb:BatchWriteItem
+          Resource:
+            - !GetAtt NpsTable.Arn
+            - !Sub "${NpsTable.Arn}/index/*"
+        # S3 permissions
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:DeleteObject
+          Resource: !Sub "${S3Bucket}/*"
+        # SQS permissions
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:GetQueueAttributes
+          Resource: !GetAtt SendQueue.Arn
+        # SES permissions
+        - Effect: Allow
+          Action:
+            - ses:SendEmail
+            - ses:SendRawEmail
+          Resource: "*"
+
+custom:
+  webpack:
+    webpackConfig: 'webpack.config.js'
+    includeModules: true
+    packager: 'npm'
+
+plugins:
+  - serverless-webpack
+  - serverless-offline
+
+functions:
+  api:
+    handler: src/handler.handler
+    events:
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors: true
+    environment:
+      FUNCTION_TYPE: 'api'
+  
+  workerSend:
+    handler: src/workers/send.handler
+    events:
+      - sqs:
+          arn: !GetAtt SendQueue.Arn
+          batchSize: 10
+          maximumBatchingWindowInSeconds: 5
+    environment:
+      FUNCTION_TYPE: 'worker'
+    timeout: 300
+
+resources:
+  Resources:
+    # DynamoDB Table - Single Table Design
+    NpsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${env:DYNAMODB_TABLE_NAME, 'nps-app-table-dev'}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+    # S3 Bucket para assets
+    S3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${env:S3_BUCKET_NAME, 'nps-assets-dev'}
+        VersioningConfiguration:
+          Status: Enabled
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders: ['*']
+              AllowedMethods: [GET, POST, PUT, DELETE]
+              AllowedOrigins: ['*']
+              MaxAge: 3600
+
+    # SQS Queue para envios
+    SendQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: nps-send-queue-${self:provider.stage}
+        VisibilityTimeoutSeconds: 300
+        MessageRetentionPeriod: 1209600
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt SendDLQ.Arn
+          maxReceiveCount: 3
+
+    # Dead Letter Queue
+    SendDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: nps-send-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600
+
+  Outputs:
+    ApiUrl:
+      Description: 'API Gateway URL'
+      Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}'
+      Export:
+        Name: ${self:service}-${self:provider.stage}-api-url
+
+    TableName:
+      Description: 'DynamoDB Table Name'
+      Value: !Ref NpsTable
+      Export:
+        Name: ${self:service}-${self:provider.stage}-table-name
+
+    QueueUrl:
+      Description: 'SQS Queue URL'
+      Value: !Ref SendQueue
+      Export:
+        Name: ${self:service}-${self:provider.stage}-queue-url
+
+    S3BucketName:
+      Description: 'S3 Bucket Name'
+      Value: !Ref S3Bucket
+      Export:
+        Name: ${self:service}-${self:provider.stage}-s3-bucket

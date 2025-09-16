@@ -1,0 +1,156 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths: [ 'nps-frontend/**' ]
+  pull_request:
+    branches: [ main, dev ]
+    paths: [ 'nps-frontend/**' ]
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: nps-frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./nps-frontend
+      run: npm ci
+
+    - name: Run linting
+      working-directory: ./nps-frontend
+      run: npm run lint
+
+    - name: Run type checking
+      working-directory: ./nps-frontend
+      run: npm run type-check
+
+    - name: Run tests
+      working-directory: ./nps-frontend
+      run: npm run test:coverage
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./nps-frontend/coverage/lcov.info
+        flags: frontend
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: nps-frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./nps-frontend
+      run: npm ci
+
+    - name: Build application
+      working-directory: ./nps-frontend
+      run: npm run build
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-build
+        path: nps-frontend/dist
+
+  deploy-dev:
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: nps-frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./nps-frontend
+      run: npm ci
+
+    - name: Build for development
+      working-directory: ./nps-frontend
+      run: npm run build
+      env:
+        VITE_API_URL: ${{ secrets.DEV_API_URL }}
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Deploy to S3
+      run: |
+        aws s3 sync nps-frontend/dist/ s3://${{ secrets.DEV_S3_BUCKET }} --delete
+        aws cloudfront create-invalidation --distribution-id ${{ secrets.DEV_CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: nps-frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./nps-frontend
+      run: npm ci
+
+    - name: Build for production
+      working-directory: ./nps-frontend
+      run: npm run build
+      env:
+        VITE_API_URL: ${{ secrets.PROD_API_URL }}
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Deploy to S3
+      run: |
+        aws s3 sync nps-frontend/dist/ s3://${{ secrets.PROD_S3_BUCKET }} --delete
+        aws cloudfront create-invalidation --distribution-id ${{ secrets.PROD_CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"

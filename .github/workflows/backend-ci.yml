@@ -1,0 +1,153 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths: [ 'nps-backend/**' ]
+  pull_request:
+    branches: [ main, dev ]
+    paths: [ 'nps-backend/**' ]
+
+env:
+  NODE_VERSION: '18'
+  AWS_REGION: 'us-east-1'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: nps-backend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./nps-backend
+      run: npm ci
+
+    - name: Run linting
+      working-directory: ./nps-backend
+      run: npm run lint
+
+    - name: Run type checking
+      working-directory: ./nps-backend
+      run: npm run type-check
+
+    - name: Run tests
+      working-directory: ./nps-backend
+      run: npm run test:coverage
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./nps-backend/coverage/lcov.info
+        flags: backend
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: nps-backend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./nps-backend
+      run: npm ci
+
+    - name: Build application
+      working-directory: ./nps-backend
+      run: npm run build
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: backend-build
+        path: nps-backend/dist
+
+  deploy-dev:
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: nps-backend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./nps-backend
+      run: npm ci
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Deploy to development
+      working-directory: ./nps-backend
+      run: npm run deploy:dev
+      env:
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        ZENDESK_API_TOKEN: ${{ secrets.ZENDESK_API_TOKEN }}
+        ZENDESK_SUBDOMAIN: ${{ secrets.ZENDESK_SUBDOMAIN }}
+        SUNCO_API_TOKEN: ${{ secrets.SUNCO_API_TOKEN }}
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: nps-backend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./nps-backend
+      run: npm ci
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Deploy to production
+      working-directory: ./nps-backend
+      run: npm run deploy:prod
+      env:
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        ZENDESK_API_TOKEN: ${{ secrets.ZENDESK_API_TOKEN }}
+        ZENDESK_SUBDOMAIN: ${{ secrets.ZENDESK_SUBDOMAIN }}
+        SUNCO_API_TOKEN: ${{ secrets.SUNCO_API_TOKEN }}

@@ -1,0 +1,27 @@
+{
+  "name": "nps-infra",
+  "version": "1.0.0",
+  "description": "Infraestrutura como código para o SaaS NPS",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "sls deploy",
+    "deploy:dev": "sls deploy --stage dev",
+    "deploy:prod": "sls deploy --stage prod",
+    "remove": "sls remove",
+    "offline": "sls offline",
+    "logs": "sls logs -f api",
+    "logs:worker": "sls logs -f workerSend"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-webpack": "^5.13.0",
+    "serverless-offline": "^13.3.0",
+    "webpack": "^5.88.0",
+    "webpack-node-externals": "^3.0.0",
+    "typescript": "^5.1.6",
+    "@types/node": "^20.4.5"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1440.0"
+  }
+}
